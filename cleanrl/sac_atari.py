@@ -68,7 +68,7 @@ def parse_args():
         help="the frequency of updates for the target networks")
     parser.add_argument("--alpha", type=float, default=0.2,
         help="Entropy regularization coefficient.")
-    parser.add_argument("--autotune", type=lambda x:bool(strtobool(x)), default=True, nargs="?", const=True,
+    parser.add_argument("--autotune", type=lambda x:bool(strtobool(x)), default=False, nargs="?", const=True,
         help="automatic tuning of the entropy coefficient")
     parser.add_argument("--target-entropy-scale", type=float, default=0.89,
         help="coefficient for scaling the autotune entropy target")
@@ -224,7 +224,7 @@ if __name__ == "__main__":
         alpha = log_alpha.exp().item()
         a_optimizer = optim.Adam([log_alpha], lr=args.q_lr, eps=1e-4)
     else:
-        alpha = args.alpha
+        alpha = args.alpha  # alpha=1/beta hence alpha = e^-(log beta)
 
     rb = ReplayBuffer(
         args.buffer_size,
