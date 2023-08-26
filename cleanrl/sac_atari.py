@@ -359,6 +359,7 @@ if __name__ == "__main__":
             if (global_step - old_global_step) >= args.save_policy_every_n_steps:
                 if last_return is None or current_return > last_return:
                     # x = torch.FloatTensor([[0.2, 0.3, 0.2, 0.7], [0.4, 0.2, 0.8, 0.9]])
+                    print("Saving model...")
                     with torch.no_grad():
                         x = data.next_observations / 255.0
                         traced_cell = torch.jit.trace(actor, (x,))
