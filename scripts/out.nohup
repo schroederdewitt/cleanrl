@@ -1,0 +1,25 @@
+/usr/lib/python3/dist-packages/requests/__init__.py:89: RequestsDependencyWarning: urllib3 (2.0.4) or chardet (3.0.4) doesn't match a supported version!
+  warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
+wandb: Currently logged in as: schroederdewitt. Use `wandb login --relogin` to force relogin
+/usr/lib/python3/dist-packages/requests/__init__.py:89: RequestsDependencyWarning: urllib3 (2.0.4) or chardet (3.0.4) doesn't match a supported version!
+  warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
+/home/cs/.cache/pypoetry/virtualenvs/cleanrl-LuM6hf-M-py3.8/lib/python3.8/site-packages/torch/utils/tensorboard/__init__.py:4: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+  if not hasattr(tensorboard, "__version__") or LooseVersion(
+usage: sac_atari.py [-h] [--exp-name EXP_NAME] [--seed SEED]
+                    [--torch-deterministic [TORCH_DETERMINISTIC]]
+                    [--cuda [CUDA]] [--track [TRACK]]
+                    [--wandb-project-name WANDB_PROJECT_NAME]
+                    [--wandb-group-name WANDB_GROUP_NAME]
+                    [--wandb-entity WANDB_ENTITY]
+                    [--capture-video [CAPTURE_VIDEO]] [--env-id ENV_ID]
+                    [--total-timesteps TOTAL_TIMESTEPS]
+                    [--buffer-size BUFFER_SIZE] [--gamma GAMMA] [--tau TAU]
+                    [--batch-size BATCH_SIZE]
+                    [--learning-starts LEARNING_STARTS]
+                    [--policy-lr POLICY_LR] [--q-lr Q_LR]
+                    [--update-frequency UPDATE_FREQUENCY]
+                    [--target-network-frequency TARGET_NETWORK_FREQUENCY]
+                    [--log-beta LOG_BETA] [--autotune [AUTOTUNE]]
+                    [--save_policy_every_n_steps [SAVE_POLICY_EVERY_N_STEPS]]
+                    [--target-entropy-scale TARGET_ENTROPY_SCALE]
+sac_atari.py: error: argument --log-beta: invalid float value: '{3.0,4.0,5.0,6.0,6.5,8.0}'
