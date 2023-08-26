@@ -76,6 +76,8 @@ def parse_args():
         help="Entropy regularization coefficient (beta=1/alpha).")
     parser.add_argument("--autotune", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="automatic tuning of the entropy coefficient")
+    parser.add_argument("--save_policy_every_n_steps", type=int, default=10000, nargs="?", const=True,
+        help="save policy model")
     parser.add_argument("--target-entropy-scale", type=float, default=0.89,
         help="coefficient for scaling the autotune entropy target")
     args = parser.parse_args()
@@ -243,9 +245,12 @@ if __name__ == "__main__":
         handle_timeout_termination=True,
     )
     start_time = time.time()
+    old_global_step = 0
 
     # TRY NOT TO MODIFY: start the game
     obs = envs.reset()
+    last_return = None
+    current_return = None
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
@@ -261,9 +266,11 @@ if __name__ == "__main__":
         for info in infos:
             if "episode" in info.keys():
                 print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+                current_return = info['episode']['r']
                 writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
                 writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
                 break
+
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
         real_next_obs = next_obs.copy()
@@ -277,7 +284,7 @@ if __name__ == "__main__":
 
         # ALGO LOGIC: training.
         if global_step > args.learning_starts:
-            if global_step % args.update_frequency == 0:
+            if (global_step - old_global_step) >= args.update_frequency:
                 data = rb.sample(args.batch_size)
                 # CRITIC training
                 with torch.no_grad():
@@ -307,6 +314,7 @@ if __name__ == "__main__":
 
                 # ACTOR training
                 _, log_pi, action_probs = actor.get_action(data.observations)
+                mean_policy_entropy = np.mean(entropy(log_pi.detach().cpu().numpy(), base=2, axis=-1))
                 with torch.no_grad():
                     qf1_values = qf1(data.observations)
                     qf2_values = qf2(data.observations)
@@ -328,13 +336,13 @@ if __name__ == "__main__":
                     alpha = log_alpha.exp().item()
 
             # update the target networks
-            if global_step % args.target_network_frequency == 0:
+            if (global_step - old_global_step) >= args.target_network_frequency:
                 for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
 
-            if global_step % 100 == 0:
+            if (global_step - old_global_step) >= 100:
                 writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
                 writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
                 writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
@@ -342,10 +350,25 @@ if __name__ == "__main__":
                 writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
                 writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
                 writer.add_scalar("losses/alpha", alpha, global_step)
+                writer.add_scalar("mean_policy_entropy", mean_policy_entropy, global_step)
                 print("SPS:", int(global_step / (time.time() - start_time)))
                 writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
                 if args.autotune:
                     writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
+
+            if (global_step - old_global_step) >= args.save_policy_every_n_steps:
+                if last_return is None or current_return > last_return:
+                    # x = torch.FloatTensor([[0.2, 0.3, 0.2, 0.7], [0.4, 0.2, 0.8, 0.9]])
+                    with torch.no_grad():
+                        x = data.next_observations / 255.0
+                        traced_cell = torch.jit.trace(actor, (x,))
+                    torch.jit.save(traced_cell, "store/policytrace-{}-logbeta{}-step{}-perf{}.pth".format(args.env_id,
+                                                                                                          args.log_beta,
+                                                                                                          global_step,
+                                                                                                          current_return))
+
+            old_global_step = global_step
+            last_return = current_return
 
     envs.close()
     writer.close()
