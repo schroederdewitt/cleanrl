@@ -362,6 +362,8 @@ if __name__ == "__main__":
                     with torch.no_grad():
                         x = data.next_observations / 255.0
                         traced_cell = torch.jit.trace(actor, (x,))
+                    if not os.path.exists("store"):
+                        os.makedirs("store")
                     torch.jit.save(traced_cell, "store/policytrace-{}-logbeta{}-step{}-perf{}.pth".format(args.env_id,
                                                                                                           args.log_beta,
                                                                                                           global_step,
