@@ -24,8 +24,11 @@ pygame = "2.1.0"
 huggingface-hub = "^0.11.1"
 rich = "<12.0"
 tenacity = "^8.2.2"
+ale-py = "0.7.4"
+accept-rom-license = "^0.4.2"
+opencv-python = "^4.6.0.66"
 
-ale-py = {version = "0.7.4", optional = true}
+
 AutoROM = {extras = ["accept-rom-license"], version = "^0.4.2", optional = true}
 opencv-python = {version = "^4.6.0.66", optional = true}
 procgen = {version = "^0.10.7", optional = true}
