@@ -4,6 +4,7 @@ import math
 import os
 import random
 import time
+from scipy.stats import entropy
 from distutils.util import strtobool
 
 import gym
