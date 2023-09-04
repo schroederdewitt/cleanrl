@@ -1,3 +1,7 @@
+# CMDs
+
+```python3 sac_atari.py --wandb-entity schroederdewitt --wandb-project-name mec_cleanrl --track```
+
 # CleanRL (Clean Implementation of RL Algorithms)
 
 
