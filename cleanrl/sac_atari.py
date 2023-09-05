@@ -2,6 +2,7 @@
 import argparse
 import os
 import random
+from scipy.stats import entropy
 import time
 from distutils.util import strtobool
 
@@ -72,6 +73,10 @@ def parse_args():
         help="automatic tuning of the entropy coefficient")
     parser.add_argument("--target-entropy-scale", type=float, default=0.89,
         help="coefficient for scaling the autotune entropy target")
+    parser.add_argument("--save_policy_every_n_steps", type=int, default=1000, nargs="?", const=True,
+        help="save policy model")
+    parser.add_argument("--log-beta", type=float, default=8.0,
+                        help="Entropy regularization coefficient (beta=1/alpha).")
     args = parser.parse_args()
     # fmt: on
     return args
@@ -330,6 +335,7 @@ if __name__ == "__main__":
 
                 # ACTOR training
                 _, log_pi, action_probs = actor.get_action(data.observations)
+                mean_policy_entropy = np.mean(entropy(log_pi.detach().cpu().numpy(), base=2, axis=-1))
                 with torch.no_grad():
                     qf1_values = qf1(data.observations)
                     qf2_values = qf2(data.observations)
@@ -358,34 +364,42 @@ if __name__ == "__main__":
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
 
             if (global_step - old_global_step_log) >= 100:
-                writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
-                writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
-                writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
-                writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
-                writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
-                writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
-                writer.add_scalar("losses/alpha", alpha, global_step)
-                writer.add_scalar("mean_policy_entropy", mean_policy_entropy, global_step)
-                print("SPS:", int(global_step / (time.time() - start_time)))
-                writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
-                if args.autotune:
-                    writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
-                old_global_step_log = global_step
+                try:
+                    writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
+                    writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
+                    writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
+                    writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
+                    writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
+                    writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
+                    writer.add_scalar("losses/alpha", alpha, global_step)
+                    writer.add_scalar("mean_policy_entropy", mean_policy_entropy, global_step)
+                    print("SPS:", int(global_step / (time.time() - start_time)))
+                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    if args.autotune:
+                        writer.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
+                    old_global_step_log = global_step
+                except:
+                    print("FAILED TO LOG.")
+                    pass
 
             if (global_step - old_global_step_save) >= args.save_policy_every_n_steps:
                 if last_return is None or current_return > last_return:
-                    print("Saving model...")
-                    with torch.no_grad():
-                        x = data.next_observations / 255.0
-                        traced_cell = torch.jit.trace(actor, (x,))
-                    policy_saver.save(traced_cell,
-                                      current_return,
-                                      "store/policytrace-{}-logbeta{}-step{}-perf{}.pth".format(args.env_id,
-                                                                                                args.log_beta,
-                                                                                                global_step,
-                                                                                                current_return))
+                    try:
+                        print("Saving model...")
+                        with torch.no_grad():
+                            x = data.next_observations / 255.0
+                            traced_cell = torch.jit.trace(actor, (x,))
+                        policy_saver.save(traced_cell,
+                                          current_return,
+                                          "policytrace-{}-logbeta{}-step{}-perf{}.pth".format(args.env_id,
+                                                                                                    args.log_beta,
+                                                                                                    global_step,
+                                                                                                    current_return))
+                        last_return = current_return
+                    except:
+                        print("Failed to save model")
                 old_global_step_save = global_step
-                last_return = current_return
+
 
     envs.close()
     writer.close()
