@@ -196,7 +196,7 @@ class PolicySaver():
             save = True
         self._last_r = r
         if save:
-            torch.save(network, filepath)
+            torch.save(network.state_dict(), filepath)
         if self._last_filepath is not None:
             os.remove(self._last_filepath)
         self._last_filepath = filepath
@@ -396,11 +396,11 @@ if __name__ == "__main__":
             if (global_step - old_global_step_save) >= args.save_policy_every_n_steps:
                 if last_return is None or current_return > last_return:
                     try:
-                        logb = args.log_beta if not args.autotune else "None"
+                        logb = args.log_beta if not args.autotune else "AUTO"
                         print("Saving model...")
                         policy_saver.save(actor,
                                           current_return,
-                                          "trace-{}-logbeta{}-step{}-perf{}-policy.pt".format(args.env_id,
+                                          "trace-{}-logbeta{}-step{}-perf{}-actor.pt".format(args.env_id,
                                                                                               logb,
                                                                                               global_step,
                                                                                               current_return))
