@@ -43,6 +43,8 @@ def parse_args():
         help="the entity (team) of wandb's project")
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
         help="weather to capture videos of the agent performances (check out `videos` folder)")
+    parser.add_argument("--pretrain-path", type=str, default="",
+        help="pretrain path")
 
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BeamRiderNoFrameskip-v4",
@@ -184,7 +186,7 @@ class PolicySaver():
         self._last_filepath = None
         self._last_r = None
 
-    def save(self, traced_cell, r, filename):
+    def save(self, network, r, filename):
         filepath = os.path.join(self.path, filename)
         save = False
         if self._last_r is not None:
@@ -194,7 +196,7 @@ class PolicySaver():
             save = True
         self._last_r = r
         if save:
-            torch.jit.save(traced_cell, filepath)
+            torch.save(network, filepath)
         if self._last_filepath is not None:
             os.remove(self._last_filepath)
         self._last_filepath = filepath
@@ -205,6 +207,8 @@ if __name__ == "__main__":
     if not os.path.exists(path):
         os.makedirs(path)
     policy_saver = PolicySaver(path)
+    qf1_saver = PolicySaver(path)
+    qf2_saver = PolicySaver(path)
 
     args = parse_args()
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
@@ -243,6 +247,13 @@ if __name__ == "__main__":
     qf2 = SoftQNetwork(envs).to(device)
     qf1_target = SoftQNetwork(envs).to(device)
     qf2_target = SoftQNetwork(envs).to(device)
+
+    if args.pretrain_path != "":
+        actor.load_state_dict(torch.load(args.pretrain_path+"-actor.pt"))
+        qf1.load_state_dict(torch.load(args.pretrain_path + "-qf1.pt"))
+        qf2.load_state_dict(torch.load(args.pretrain_path + "-qf2.pt"))
+        print("Model weights loaded from pretrained!")
+
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
     # TRY NOT TO MODIFY: eps=1e-4 increases numerical stability
@@ -385,16 +396,28 @@ if __name__ == "__main__":
             if (global_step - old_global_step_save) >= args.save_policy_every_n_steps:
                 if last_return is None or current_return > last_return:
                     try:
+                        logb = args.log_beta if not args.autotune else "None"
                         print("Saving model...")
-                        with torch.no_grad():
-                            x = data.next_observations / 255.0
-                            traced_cell = torch.jit.trace(actor, (x,))
-                        policy_saver.save(traced_cell,
+                        policy_saver.save(actor,
                                           current_return,
-                                          "policytrace-{}-logbeta{}-step{}-perf{}.pth".format(args.env_id,
-                                                                                                    args.log_beta,
-                                                                                                    global_step,
-                                                                                                    current_return))
+                                          "trace-{}-logbeta{}-step{}-perf{}-policy.pt".format(args.env_id,
+                                                                                              logb,
+                                                                                              global_step,
+                                                                                              current_return))
+
+                        qf1_saver.save(qf1,
+                                       current_return,
+                                       "trace-{}-logbeta{}-step{}-perf{}-qf1.pt".format(args.env_id,
+                                                                                        logb,
+                                                                                        global_step,
+                                                                                        current_return))
+
+                        qf2_saver.save(qf2,
+                                       current_return,
+                                       "trace-{}-logbeta{}-step{}-perf{}-qf2.pt".format(args.env_id,
+                                                                                        logb,
+                                                                                        global_step,
+                                                                                        current_return))
                         last_return = current_return
                     except:
                         print("Failed to save model")
